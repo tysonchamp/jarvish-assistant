@@ -1,0 +1,9 @@
+requests
+SpeechRecognition
+pyaudio
+pygame
+pyautogui
+Pillow
+streamlit
+pydub
+streamlit-mic-recorder
