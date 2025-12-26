@@ -2,7 +2,7 @@ import streamlit as st
 import time
 from core import JarvisCore
 from audio_manager import AudioManager
-from config import OLLAMA_MODEL, OLLAMA_HOST, EMBADDING_MODEL
+from config import OLLAMA_MODEL, OLLAMA_HOST, EMBADDING_MODEL, WAKE_WORD
 import os
 
 # Page Config
@@ -143,18 +143,101 @@ audio_bytes = None
 
 # Voice Mode Interface
 if "Voice" in interaction_mode:
-    # Mic Recorder (Floating)
-    st.markdown('<div id="mic-container"></div>', unsafe_allow_html=True)
-    from streamlit_mic_recorder import mic_recorder
-    audio_capture = mic_recorder(
-        start_prompt="🎙️",
-        stop_prompt="⏹️", 
-        key="recorder",
-        just_once=True,
-        use_container_width=False
-    )
-    if audio_capture:
-        audio_bytes = audio_capture['bytes']
+    # Input Source Selector
+    input_source = st.radio("Input Source", ["Browser (Manual)", "Desktop Mic (Hands-free)"], index=0, horizontal=True)
+    
+    if "Browser" in input_source:
+        # Mic Recorder (Floating)
+        st.markdown('<div id="mic-container"></div>', unsafe_allow_html=True)
+        from streamlit_mic_recorder import mic_recorder
+        audio_capture = mic_recorder(
+            start_prompt="🎙️",
+            stop_prompt="⏹️", 
+            key="recorder",
+            just_once=True,
+            use_container_width=False
+        )
+        if audio_capture:
+            audio_bytes = audio_capture['bytes']
+            
+    elif "Desktop" in input_source:
+        st.info(f"Hands-free mode active. Say **'{WAKE_WORD}'** to interact.")
+        if st.button("Start Listening Loop"):
+            st.session_state.listening_active = True
+        
+        if st.button("Stop Listening"):
+            st.session_state.listening_active = False
+            st.rerun()
+
+        # Placeholders for Loop Updates
+        status_area = st.empty()
+        chat_area = st.empty()
+        
+        if st.session_state.get("listening_active", False):
+            # Blocking Loop
+            while st.session_state.listening_active:
+                status_area.markdown(f"👂 Listening for **{WAKE_WORD}**...")
+                
+                # Listen with short timeout to allow loop to cycle/break if needed
+                text = st.session_state.audio_manager.listen(timeout=2, phrase_time_limit=10)
+                
+                if text:
+                    if WAKE_WORD.lower() in text.lower():
+                        status_area.markdown("✅ Wake Word Detected! Processing...")
+                        
+                        # Extract command
+                        # Simple split, user might say "Hello Jarvis" or "Jarvis Hello"
+                        # We just take the whole text for context usually, or split?
+                        # Let's clean it up slightly or just pass full text
+                        command = text
+                        
+                        # Process
+                        # Ensure Conversation Exists
+                        if st.session_state.current_conversation_id is None:
+                            initial_title = (command[:30] + '...') if len(command) > 30 else command
+                            new_id = st.session_state.db.create_conversation(title=initial_title)
+                            st.session_state.current_conversation_id = new_id
+                            # Optional: Title Generation (Simplified direct update)
+                            # We skip the complex async title generation here for speed in loop
+                            # or we can reuse the logic if encapsulated. For now, simple title is safer.
+
+                        # Add User Message to State and DB
+                        st.session_state.messages.append({"role": "user", "content": command})
+                        st.session_state.db.add_message(st.session_state.current_conversation_id, "user", command)
+                        
+                        # Process Response
+                        response_text, audio_file = st.session_state.jarvis.process_input(command)
+                        
+                        # Save Response
+                        st.session_state.messages.append({"role": "assistant", "content": response_text, "audio": audio_file})
+                        st.session_state.db.add_message(st.session_state.current_conversation_id, "assistant", response_text, audio_path=audio_file)
+                        
+                        # Play Audio (Desktop)
+                        # In Hands-free desktop mode, we assume desktop speakers
+                        if audio_file and os.path.exists(audio_file):
+                            st.session_state.audio_manager.play(audio_file)
+                        
+                        # Rerun to update chat history UI?
+                        # Rerun breaks the loop. So we just update status or force rerun?
+                        # If we rerun, we lose the loop context. 
+                        # Better to stay in loop and just update recent interaction.
+                        status_area.success(f"Response: {response_text[:50]}...")
+                        # If we want to see the chat history build up, we need to rerun.
+                        # But that stops listening.
+                        # Compromise: In Hands-free, we prioritize voice interaction. 
+                        # We can manually display the latest message in `chat_area`.
+                        chat_area.markdown(f"**You**: {command}\n\n**Jarvis**: {response_text}")
+                        
+                    else:
+                        # status_area.text(f"Heard: '{text}' (No wake word)")
+                        pass
+                else:
+                    # Time out - just loop again
+                    pass
+                
+                # Small sleep to prevent CPU hogging if listen returns immediately (error case)
+                time.sleep(0.1)
+
 
 # Text Mode Interface
 if "Text" in interaction_mode:

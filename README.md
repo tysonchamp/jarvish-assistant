@@ -33,6 +33,8 @@ conda activate jarvish
 
 # 2. Install Audio & System Dependencies
 # Note: Lubuntu/Ubuntu might require these for PyAudio and Screenshot tools
+conda install -c conda-forge portaudio pyaudio alsa-lib alsa-plugins -y
+# conda run -n screen_app python debug_audio.py
 sudo apt-get update
 sudo apt-get install ffmpeg scrot
 
