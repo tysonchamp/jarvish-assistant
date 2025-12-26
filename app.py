@@ -258,6 +258,19 @@ if prompt:
         # Display Response
         message_placeholder.markdown(response_text)
         
+        # Add Assistant Message to History and DB (BEFORE Playback)
+        st.session_state.messages.append({
+            "role": "assistant", 
+            "content": response_text,
+            "audio": audio_file if output_mode in ["Mobile/Browser", "Both"] else None
+        })
+        st.session_state.db.add_message(
+            st.session_state.current_conversation_id, 
+            "assistant", 
+            response_text, 
+            audio_path=audio_file if output_mode in ["Mobile/Browser", "Both"] else None
+        )
+        
         if audio_file:
             # Play on Desktop (Server)
             if output_mode in ["Desktop Speakers", "Both"]:
@@ -268,17 +281,5 @@ if prompt:
             if output_mode in ["Mobile/Browser", "Both"]:
                 # autoplay=True requires Streamlit 1.33+
                 st.audio(audio_file, format="audio/mp3", autoplay=True)
-    
-    # Add Assistant Message to History and DB
-    st.session_state.messages.append({
-        "role": "assistant", 
-        "content": response_text,
-        "audio": audio_file if output_mode in ["Mobile/Browser", "Both"] else None
-    })
-    st.session_state.db.add_message(
-        st.session_state.current_conversation_id, 
-        "assistant", 
-        response_text, 
-        audio_path=audio_file if output_mode in ["Mobile/Browser", "Both"] else None
-    )
+
 
