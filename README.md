@@ -21,7 +21,7 @@
 ### prerequisites
 - **Python 3.8+**
 - **Ollama** running locally (`http://localhost:11434`)
-- **Kokoro TTS API** running locally (`http://localhost:8880`)
+- **Kokoro TTS API** (`https://github.com/remsky/Kokoro-FastAPI`) running locally (`http://localhost:8880`)
 
 ### 1. Environment Setup (Miniconda)
 Recommended for maintaining clean dependencies (tested on Ubuntu/Lubuntu 24).
