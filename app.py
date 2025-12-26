@@ -34,7 +34,7 @@ st.markdown("""
     }
     .stChatMessage[data-testid="stChatMessage"]:nth-child(odd) {
     /* Floating Mic Button */
-    div.element-container:has(div#mic-container) {
+    div.element-container:has(div#mic-container) + div.element-container {
         position: fixed;
         bottom: 22px;
         right: 15px; /* Right side like WhatsApp */
@@ -44,7 +44,7 @@ st.markdown("""
     
     /* Adjust Chat Input to make space for Mic */
     div[data-testid="stChatInput"] {
-        padding-right: 60px !important;
+        padding-right: 10px !important;
     }
     
     /* Input Fields Styling */
@@ -69,6 +69,11 @@ st.title("🤖 Jarvish Assistant")
 # Sidebar for options
 with st.sidebar:
     st.header("Settings")
+    
+    # Mode Selector
+    interaction_mode = st.radio("Interface Mode", ["Text Chat 💬", "Voice Chat 🎙️"], index=0)
+    st.write("---")
+    
     st.write("Voice: af_heart (Kokoro)")
     # dynamically get models from config.py
     st.write("Model: " + OLLAMA_MODEL + " (Ollama)")
@@ -87,28 +92,38 @@ for message in st.session_state.messages:
         if "audio" in message:
             st.audio(message["audio"])
 
-# Mic Recorder (Floating)
-st.markdown('<div id="mic-container"></div>', unsafe_allow_html=True)
-from streamlit_mic_recorder import mic_recorder
-audio_capture = mic_recorder(
-    start_prompt="🎙️",
-    stop_prompt="⏹️", 
-    key="recorder",
-    just_once=True,
-    use_container_width=False
-)
-
-# Chat Input (Native Sticky)
-user_input = st.chat_input("Type your message...")
-
 prompt = None
 audio_bytes = None
 
+# Voice Mode Interface
+if "Voice" in interaction_mode:
+    # Mic Recorder (Floating)
+    st.markdown('<div id="mic-container"></div>', unsafe_allow_html=True)
+    from streamlit_mic_recorder import mic_recorder
+    audio_capture = mic_recorder(
+        start_prompt="🎙️",
+        stop_prompt="⏹️", 
+        key="recorder",
+        just_once=True,
+        use_container_width=False
+    )
+    if audio_capture:
+        audio_bytes = audio_capture['bytes']
+
+# Text Mode Interface
+if "Text" in interaction_mode:
+    # Chat Input (Native Sticky)
+    user_input = st.chat_input("Type your message...")
+    if user_input:
+        prompt = user_input
+
 # Logic to prioritize inputs
-if user_input:
-    prompt = user_input
-elif audio_capture:
-    audio_bytes = audio_capture['bytes']
+if prompt:
+    # prompt is already set from Text Mode or Voice Mode above if applicable
+    pass
+elif audio_bytes:
+    # If no text prompt, check for audio bytes from Voice Mode
+    # audio_bytes is set above if applicable
     st.toast("Processing audio...")
     
     # Use pydub to convert to compatible WAV
