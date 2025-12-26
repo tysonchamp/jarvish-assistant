@@ -2,11 +2,20 @@ import streamlit as st
 import time
 from core import JarvisCore
 from audio_manager import AudioManager
-from config import OLLAMA_MODEL
+from config import OLLAMA_MODEL, OLLAMA_HOST, EMBADDING_MODEL
 import os
 
 # Page Config
 st.set_page_config(page_title="Jarvish Assistant", page_icon="🤖", layout="centered")
+
+from db_manager import DBManager
+
+if "db" not in st.session_state:
+    st.session_state.db = DBManager()
+    st.session_state.db.create_tables() # Ensure tables exist on startup
+
+if "current_conversation_id" not in st.session_state:
+    st.session_state.current_conversation_id = None
 
 # Initialize Session State
 if "messages" not in st.session_state:
@@ -15,6 +24,7 @@ if "jarvis" not in st.session_state:
     st.session_state.jarvis = JarvisCore()
 if "audio_manager" not in st.session_state:
     st.session_state.audio_manager = AudioManager()
+
 
 # Custom CSS for "premium" feel
 st.markdown("""
@@ -68,6 +78,35 @@ st.title("🤖 Jarvish Assistant")
 
 # Sidebar for options
 with st.sidebar:
+    st.header("🗂️ History")
+    
+    if st.button("➕ New Chat", use_container_width=True):
+        st.session_state.current_conversation_id = None
+        st.session_state.messages = []
+        st.rerun()
+        
+    # Load Conversations
+    conversations = st.session_state.db.get_conversations()
+    if conversations:
+        st.write("---")
+        for conv in conversations:
+            # Highlight current chat
+            button_style = "primary" if st.session_state.current_conversation_id == conv['id'] else "secondary"
+            if st.button(f"💬 {conv['title']}", key=f"conv_{conv['id']}", use_container_width=True, type=button_style):
+                st.session_state.current_conversation_id = conv['id']
+                # Load messages for this conversation
+                db_messages = st.session_state.db.get_messages(conv['id'])
+                # Convert DB messages to Session State format
+                st.session_state.messages = []
+                for msg in db_messages:
+                    st.session_state.messages.append({
+                        "role": msg['role'],
+                        "content": msg['content'],
+                        "audio": msg['audio_path']  # Assuming we store path or None
+                    })
+                st.rerun()
+
+    st.write("---")
     st.header("Settings")
     
     # Mode Selector
@@ -81,7 +120,11 @@ with st.sidebar:
     output_mode = st.radio("Audio Output", ["Desktop Speakers", "Mobile/Browser", "Both"], index=0)
     
     if st.button("Clear Chat"):
+        # Helper to clear current chat messages from memory (not DB)
         st.session_state.messages = []
+        if st.session_state.current_conversation_id:
+             st.session_state.db.delete_conversation(st.session_state.current_conversation_id)
+             st.session_state.current_conversation_id = None
         st.rerun()
 
 # Display Chat History with Avatars
@@ -156,8 +199,51 @@ elif audio_bytes:
         st.error(f"Error processing audio: {e}")
 
 if prompt:
-    # Add User Message
+    # Handle New Conversation Creation
+    if st.session_state.current_conversation_id is None:
+        # Create new conversation in DB
+        # Initial title is the prompt (truncated) or "New Chat"
+        initial_title = (prompt[:30] + '...') if len(prompt) > 30 else prompt
+        new_id = st.session_state.db.create_conversation(title=initial_title)
+        st.session_state.current_conversation_id = new_id
+        
+        # Trigger Title Generation in Background (Simulated)
+        # We can update the title properly using LLM
+        try:
+           # Simple direct title generation call
+           from ollama_client import OllamaClient
+           client = OllamaClient(model=EMBADDING_MODEL) # Use specified model for titling
+           # Short non-conversational request
+           title_prompt = f"Generate a short, concise (3-5 words) chat title for this opening message: '{prompt}'. Do not include quotes."
+           
+           # Let's do a direct request for title to avoid messing up main chat history context
+           import requests
+           import json
+           from config import OLLAMA_HOST
+           
+           title_payload = {
+               "model": EMBADDING_MODEL,
+               "prompt": title_prompt,
+               "stream": False
+           }
+           res = requests.post(f"{OLLAMA_HOST}/api/generate", json=title_payload)
+           if res.status_code == 200:
+               final_title = res.json().get("response", "").strip().strip('"')
+               # Update DB
+               conn = st.session_state.db.get_connection()
+               cursor = conn.cursor()
+               cursor.execute("UPDATE conversations SET title = %s WHERE id = %s", (final_title, new_id))
+               conn.commit()
+               cursor.close()
+               conn.close()
+               st.rerun() # Refresh sidebar to show new title
+        except Exception as e:
+            print(f"Title generation failed: {e}")
+
+    # Add User Message to State and DB
     st.session_state.messages.append({"role": "user", "content": prompt})
+    st.session_state.db.add_message(st.session_state.current_conversation_id, "user", prompt)
+    
     with st.chat_message("user", avatar="👤"):
         st.markdown(prompt)
 
@@ -167,8 +253,6 @@ if prompt:
         message_placeholder.markdown('<span class="thinking">Thinking...</span>', unsafe_allow_html=True)
         
         # Process via Core
-        # Note: 'read my screen' in web context might grab server screen, which is usually not what user wants on mobile.
-        # But we will keep logic consistent.
         response_text, audio_file = st.session_state.jarvis.process_input(prompt)
         
         # Display Response
@@ -185,9 +269,16 @@ if prompt:
                 # autoplay=True requires Streamlit 1.33+
                 st.audio(audio_file, format="audio/mp3", autoplay=True)
     
-    # Add Assistant Message to History
+    # Add Assistant Message to History and DB
     st.session_state.messages.append({
         "role": "assistant", 
         "content": response_text,
         "audio": audio_file if output_mode in ["Mobile/Browser", "Both"] else None
     })
+    st.session_state.db.add_message(
+        st.session_state.current_conversation_id, 
+        "assistant", 
+        response_text, 
+        audio_path=audio_file if output_mode in ["Mobile/Browser", "Both"] else None
+    )
+

@@ -32,10 +32,23 @@ sudo apt-get install python3-pyaudio portaudio19-dev ffmpeg
 sudo apt-get install scrot python3-tk python3-dev
 ```
 
-### 2. Install Python Packages
-```bash
-pip install -r requirements.txt
-```
+### 2. **Install Dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+   *Note: Ensure `ffmpeg` is installed on your system for audio processing.*
+
+3.  **Database Setup (MySQL)**:
+    *   Ensure you have a MySQL server running (e.g., via XAMPP, Docker, or local install).
+    *   Create a database (default name: `jarvish_db`) or let the setup script do it for you.
+    *   Initialize the database tables:
+        ```bash
+        python setup_db.py
+        ```
+    *   (Optional) Update `config.py` or set environment variables `DB_HOST`, `DB_USER`, `DB_PASSWORD` if your MySQL configuration differs from default.
+
+4. **Configuration (Optional)**:
+   You can modify `config.py` to change models (e.g., `gemma3:latest`), voices, or database credentials.
 
 ## 🎮 Usage
 
