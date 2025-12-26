@@ -23,34 +23,48 @@ st.markdown("""
         background-color: #0e1117;
         color: #ffffff;
     }
+    /* Premium Chat Styling */
     .stChatMessage {
-        background-color: #262730;
-        border-radius: 10px;
-        padding: 10px;
-        margin-bottom: 10px;
+        background-color: #1e2126;
+        border: 1px solid #2e3035;
+        border-radius: 15px;
+        padding: 15px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
     }
-    .stButton>button {
-        background-color: #ff4b4b;
+    .stChatMessage[data-testid="stChatMessage"]:nth-child(odd) {
+    /* Floating Mic Button */
+    div.element-container:has(div#mic-container) {
+        position: fixed;
+        bottom: 22px;
+        right: 15px; /* Right side like WhatsApp */
+        z-index: 999999;
+        width: auto;
+    }
+    
+    /* Adjust Chat Input to make space for Mic */
+    div[data-testid="stChatInput"] {
+        padding-right: 60px !important;
+    }
+    
+    /* Input Fields Styling */
+    textarea[data-testid="stChatInputTextArea"] {
+        background-color: #1e2126;
         color: white;
         border-radius: 20px;
-        padding: 10px 24px;
     }
-    /* Animated Thinking */
-    @keyframes pulse {
-        0% { opacity: 0.5; }
-        50% { opacity: 1; }
-        100% { opacity: 0.5; }
+    
+    /* Scroll padding */
+    .main .block-container {
+        padding-bottom: 150px;
     }
-    .thinking {
-        animation: pulse 1.5s infinite;
-        color: #4facfe;
-        font-weight: bold;
-    }
+    
 </style>
 """, unsafe_allow_html=True)
 
 st.title("🤖 Jarvish Assistant")
-st.markdown("I am your AI companion. Speak or type to interact.")
+# Hide the hint to look cleaner
+# st.markdown("I am your AI companion. Enable **Mobile/Browser** output for auto-play response.")
 
 # Sidebar for options
 with st.sidebar:
@@ -65,38 +79,37 @@ with st.sidebar:
         st.session_state.messages = []
         st.rerun()
 
-# Display Chat History
+# Display Chat History with Avatars
 for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
+    avatar = "👤" if message["role"] == "user" else "🤖"
+    with st.chat_message(message["role"], avatar=avatar):
         st.markdown(message["content"])
         if "audio" in message:
             st.audio(message["audio"])
 
-# Input Handling
-user_input = st.chat_input("Type your message here...")
-
-# Audio Input (Standard JS Recorder)
+# Mic Recorder (Floating)
+st.markdown('<div id="mic-container"></div>', unsafe_allow_html=True)
 from streamlit_mic_recorder import mic_recorder
-
-st.info("💡 Note: Microphone access on mobile requires **HTTPS** or **localhost**. If using HTTP over WiFi, refer to the README for browser configuration.")
-
-# Capture audio
-# keys are important to prevent reloading issues
 audio_capture = mic_recorder(
-    start_prompt="🎤 Start Recording",
-    stop_prompt="⏹️ Stop Recording",
-    key="recorder"
+    start_prompt="🎙️",
+    stop_prompt="⏹️", 
+    key="recorder",
+    just_once=True,
+    use_container_width=False
 )
 
-# Process Input
+# Chat Input (Native Sticky)
+user_input = st.chat_input("Type your message...")
+
 prompt = None
+audio_bytes = None
+
+# Logic to prioritize inputs
 if user_input:
     prompt = user_input
 elif audio_capture:
-    st.toast("Audio captured! Processing...")
-    
-    # audio_capture is a dict: {'bytes': b'...', 'sample_rate': ...}
     audio_bytes = audio_capture['bytes']
+    st.toast("Processing audio...")
     
     # Use pydub to convert to compatible WAV
     from pydub import AudioSegment
@@ -130,11 +143,11 @@ elif audio_capture:
 if prompt:
     # Add User Message
     st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
+    with st.chat_message("user", avatar="👤"):
         st.markdown(prompt)
 
     # Thinking State
-    with st.chat_message("assistant"):
+    with st.chat_message("assistant", avatar="🤖"):
         message_placeholder = st.empty()
         message_placeholder.markdown('<span class="thinking">Thinking...</span>', unsafe_allow_html=True)
         
@@ -154,7 +167,8 @@ if prompt:
             
             # Play on Mobile (Browser)
             if output_mode in ["Mobile/Browser", "Both"]:
-                st.audio(audio_file)
+                # autoplay=True requires Streamlit 1.33+
+                st.audio(audio_file, format="audio/mp3", autoplay=True)
     
     # Add Assistant Message to History
     st.session_state.messages.append({

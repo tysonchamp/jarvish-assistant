@@ -60,6 +60,8 @@ Modern browsers block microphone access on "insecure" origins (HTTP remote IP). 
    ```bash
    ngrok http 8501
    ```
+   **Autoplay Note**: Mobile browsers often require one user interaction (tap anywhere) before allowing auto-playing audio. If audio doesn't play automatically, try interacting with the page first.
+
 2. **Option B (Chrome Flags)**:
    - Go to `chrome://flags/#unsafely-treat-insecure-origin-as-secure` on your mobile browser.
    - Add your computer's IP (e.g., `http://192.168.1.5:8501`).
