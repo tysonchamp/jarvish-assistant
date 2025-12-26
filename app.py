@@ -265,13 +265,13 @@ if prompt:
         st.session_state.messages.append({
             "role": "assistant", 
             "content": response_text,
-            "audio": audio_file if output_mode in ["Mobile/Browser", "Both"] else None
+            "audio": audio_file
         })
         st.session_state.db.add_message(
             st.session_state.current_conversation_id, 
             "assistant", 
             response_text, 
-            audio_path=audio_file if output_mode in ["Mobile/Browser", "Both"] else None
+            audio_path=audio_file
         )
         
         if audio_file:
