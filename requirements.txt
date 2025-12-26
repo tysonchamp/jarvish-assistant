@@ -8,3 +8,5 @@ streamlit
 pydub
 streamlit-mic-recorder
 mysql-connector-python
+tk
+pyaudio

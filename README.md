@@ -18,27 +18,29 @@
 
 ## 🚀 Installation
 
-### Prerequisites
+### prerequisites
 - **Python 3.8+**
 - **Ollama** running locally (`http://localhost:11434`)
 - **Kokoro TTS API** running locally (`http://localhost:8880`)
 
-### 1. System Dependencies (Linux)
-```bash
-# Audio drivers
-sudo apt-get install python3-pyaudio portaudio19-dev ffmpeg
+### 1. Environment Setup (Miniconda)
+Recommended for maintaining clean dependencies (tested on Ubuntu/Lubuntu 24).
 
-# Screenshot tools
-sudo apt-get install scrot python3-tk python3-dev
+```bash
+# 1. Create a new environment
+conda create -n jarvish python=3.10
+conda activate jarvish
+
+# 2. Install Audio & System Dependencies
+# Note: Lubuntu/Ubuntu might require these for PyAudio and Screenshot tools
+sudo apt-get update
+sudo apt-get install ffmpeg scrot
+
+# 3. Install Python Packages
+pip install -r requirements.txt
 ```
 
-### 2. **Install Dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-   *Note: Ensure `ffmpeg` is installed on your system for audio processing.*
-
-3.  **Database Setup (MySQL)**:
+### 2. Database Setup (MySQL)
     *   Ensure you have a MySQL server running (e.g., via XAMPP, Docker, or local install).
     *   Create a database (default name: `jarvish_db`) or let the setup script do it for you.
     *   Initialize the database tables:
