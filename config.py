@@ -15,6 +15,7 @@ TTS_SPEED = float(os.getenv("TTS_SPEED", "1.0"))
 
 # Audio Configuration
 WAKE_WORD = os.getenv("WAKE_WORD", "jarvis")
+AUDIO_STORAGE_PATH = os.getenv("AUDIO_STORAGE_PATH", "audio_storage")
 
 # Utils Configuration
 SCREENSHOT_PATH = os.getenv("SCREENSHOT_PATH", "/tmp/screenshot.png")

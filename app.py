@@ -132,8 +132,11 @@ for message in st.session_state.messages:
     avatar = "👤" if message["role"] == "user" else "🤖"
     with st.chat_message(message["role"], avatar=avatar):
         st.markdown(message["content"])
-        if "audio" in message:
-            st.audio(message["audio"])
+        if "audio" in message and message["audio"]:
+            if os.path.exists(message["audio"]):
+                st.audio(message["audio"])
+            else:
+                st.warning(f"Audio file missing: {message['audio']}")
 
 prompt = None
 audio_bytes = None
@@ -280,6 +283,9 @@ if prompt:
             # Play on Mobile (Browser)
             if output_mode in ["Mobile/Browser", "Both"]:
                 # autoplay=True requires Streamlit 1.33+
-                st.audio(audio_file, format="audio/mp3", autoplay=True)
+                if os.path.exists(audio_file):
+                    st.audio(audio_file, format="audio/mp3", autoplay=True)
+                else:
+                    st.warning(f"Audio file failed to save: {audio_file}")
 
 

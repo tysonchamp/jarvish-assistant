@@ -8,9 +8,9 @@ class KokoroClient:
         self.voice = voice
         self.speed = speed
 
-    def generate_audio(self, text, output_file="output.mp3"):
+    def generate_audio(self, text, output_file=None):
         """
-        Generates audio from text using Kokoro TTS and saves it to a file.
+        Generates audio from text using Kokoro TTS and saves it to a unique file.
         Returns the path to the saved file or None if failed.
         """
         payload = {
@@ -20,6 +20,22 @@ class KokoroClient:
             "response_format": "mp3",
             "speed": self.speed
         }
+        
+        # Determine output path
+        if output_file is None:
+            from config import AUDIO_STORAGE_PATH
+            import time
+            import uuid
+            
+            # Ensure directory exists
+            if not os.path.exists(AUDIO_STORAGE_PATH):
+                os.makedirs(AUDIO_STORAGE_PATH)
+                
+            # Create unique filename: audio_<timestamp>_<short_uuid>.mp3
+            timestamp = int(time.time())
+            unique_id = str(uuid.uuid4())[:8]
+            filename = f"audio_{timestamp}_{unique_id}.mp3"
+            output_file = os.path.join(AUDIO_STORAGE_PATH, filename)
         
         try:
             response = requests.post(self.endpoint, json=payload, stream=True)
